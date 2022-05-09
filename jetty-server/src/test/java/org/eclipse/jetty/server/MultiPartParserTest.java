@@ -23,6 +23,8 @@ import org.eclipse.jetty.server.MultiPartParser.State;
 import org.eclipse.jetty.util.BufferUtil;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -466,46 +468,41 @@ public class MultiPartParserTest
         assertThat(x.getMessage(), containsString("Bad EOL"));
     }
 
-    @Test // TODO: Parameterize
-    public void testBadHeaderNames() throws Exception
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "Foo\\Bar: value\r\n",
+        "Foo@Bar: value\r\n",
+        "Foo,Bar: value\r\n",
+        "Foo}Bar: value\r\n",
+        "Foo{Bar: value\r\n",
+        "Foo=Bar: value\r\n",
+        "Foo>Bar: value\r\n",
+        "Foo<Bar: value\r\n",
+        "Foo)Bar: value\r\n",
+        "Foo(Bar: value\r\n",
+        "Foo?Bar: value\r\n",
+        "Foo\"Bar: value\r\n",
+        "Foo/Bar: value\r\n",
+        "Foo]Bar: value\r\n",
+        "Foo[Bar: value\r\n",
+        // @checkstyle-disable-check : AvoidEscapedUnicodeCharactersCheck
+        "\u0192\u00f8\u00f8\u00df\u00e5\u00ae: value\r\n"
+    })
+    public void testBadHeaderNames(String bad)
     {
-        String[] bad = new String[]
-            {
-                "Foo\\Bar: value\r\n",
-                "Foo@Bar: value\r\n",
-                "Foo,Bar: value\r\n",
-                "Foo}Bar: value\r\n",
-                "Foo{Bar: value\r\n",
-                "Foo=Bar: value\r\n",
-                "Foo>Bar: value\r\n",
-                "Foo<Bar: value\r\n",
-                "Foo)Bar: value\r\n",
-                "Foo(Bar: value\r\n",
-                "Foo?Bar: value\r\n",
-                "Foo\"Bar: value\r\n",
-                "Foo/Bar: value\r\n",
-                "Foo]Bar: value\r\n",
-                "Foo[Bar: value\r\n",
-                // @checkstyle-disable-check : AvoidEscapedUnicodeCharactersCheck
-                "\u0192\u00f8\u00f8\u00df\u00e5\u00ae: value\r\n"
-            };
+        ByteBuffer buffer = BufferUtil.toBuffer(
+            "--AaB03x\r\n" + bad + "\r\n--AaB03x--\r\n");
 
-        for (int i = 0; i < bad.length; i++)
+        MultiPartParser.Handler handler = new TestHandler();
+        MultiPartParser parser = new MultiPartParser(handler, "AaB03x");
+
+        try
         {
-            ByteBuffer buffer = BufferUtil.toBuffer(
-                "--AaB03x\r\n" + bad[i] + "\r\n--AaB03x--\r\n");
-
-            MultiPartParser.Handler handler = new TestHandler();
-            MultiPartParser parser = new MultiPartParser(handler, "AaB03x");
-
-            try
-            {
-                parser.parse(buffer, true);
-            }
-            catch (BadMessageException e)
-            {
-                assertTrue(e.getMessage().contains("Illegal character"));
-            }
+            parser.parse(buffer, true);
+        }
+        catch (BadMessageException e)
+        {
+            assertTrue(e.getMessage().contains("Illegal character"));
         }
     }
 
