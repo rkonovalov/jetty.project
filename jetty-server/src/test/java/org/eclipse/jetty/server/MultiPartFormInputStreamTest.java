@@ -977,6 +977,33 @@ public class MultiPartFormInputStreamTest
     }
 
     @Test
+    public void testBase64NotEncodedContent() throws Exception
+    {
+        String contentWithEncodedPart =
+                "--AaB03x\r\n" +
+                "Content-disposition: form-data; name=\"stuff\"; filename=\"stuff.txt\"\r\n" +
+                "Content-Transfer-Encoding: base64\r\n" +
+                "Content-Type: application/octet-stream\r\n" +
+                "\r\n" +
+                "hello jetty\r\n" + // intentionally not encoded
+                "--AaB03x--\r\n";
+
+        MultipartConfigElement config = new MultipartConfigElement(_dirname, 1024, 3072, 50);
+        MultiPartFormInputStream mpis = new MultiPartFormInputStream(new ByteArrayInputStream(contentWithEncodedPart.getBytes()),
+            _contentType,
+            config,
+            _tmpDir);
+        Collection<Part> parts = mpis.getParts();
+        assertEquals(1, parts.size());
+
+        Part p2 = mpis.getPart("stuff");
+        assertNotNull(p2);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        IO.copy(p2.getInputStream(), baos);
+        assertEquals("hello jetty", baos.toString(StandardCharsets.US_ASCII));
+    }
+
+    @Test
     public void testBase64EncodedContent() throws Exception
     {
         String contentWithEncodedPart =
