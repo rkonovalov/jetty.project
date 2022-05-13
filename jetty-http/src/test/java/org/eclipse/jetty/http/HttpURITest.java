@@ -22,8 +22,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.eclipse.jetty.http.HttpURI.Violation;
@@ -32,12 +34,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -46,7 +50,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 public class HttpURITest
 {
     @Test
-    public void testInvalidAddress() throws Exception
+    public void testInvalidAddress()
     {
         assertInvalidURI("http://[ffff::1:8080/", "Invalid URL; no closing ']' -- should throw exception");
         assertInvalidURI("**", "only '*', not '**'");
@@ -116,34 +120,33 @@ public class HttpURITest
         assertThat(uri.getPath(), is("/bar"));
     }
 
-    @Test
-    public void testExtB() throws Exception
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "a", "abcdABCD", "\u00C0", "\u697C", "\uD869\uDED5", "\uD840\uDC08"
+    })
+    public void testExtB(String value) throws Exception
     {
-        // @checkstyle-disable-check : AvoidEscapedUnicodeCharactersCheck
-        for (String value : new String[]{"a", "abcdABCD", "\u00C0", "\u697C", "\uD869\uDED5", "\uD840\uDC08"})
-        {
-            HttpURI uri = new HttpURI("/path?value=" + URLEncoder.encode(value, "UTF-8"));
+        HttpURI uri = new HttpURI("/path?value=" + URLEncoder.encode(value, "UTF-8"));
 
-            MultiMap<String> parameters = new MultiMap<>();
-            uri.decodeQueryTo(parameters, StandardCharsets.UTF_8);
-            assertEquals(value, parameters.getString("value"));
-        }
+        MultiMap<String> parameters = new MultiMap<>();
+        uri.decodeQueryTo(parameters, StandardCharsets.UTF_8);
+        assertEquals(value, parameters.getString("value"));
     }
 
     @Test
-    public void testAt() throws Exception
+    public void testAt()
     {
         HttpURI uri = new HttpURI("/@foo/bar");
         assertEquals("/@foo/bar", uri.getPath());
     }
 
     @Test
-    public void testParams() throws Exception
+    public void testParams()
     {
         HttpURI uri = new HttpURI("/foo/bar");
         assertEquals("/foo/bar", uri.getPath());
         assertEquals("/foo/bar", uri.getDecodedPath());
-        assertEquals(null, uri.getParam());
+        assertNull(uri.getParam());
 
         uri = new HttpURI("/foo/bar;jsessionid=12345");
         assertEquals("/foo/bar;jsessionid=12345", uri.getPath());
@@ -194,7 +197,7 @@ public class HttpURITest
         assertEquals("/f%30%30;p0/bar;p1;p2", uri.getPath());
         assertEquals("/f00/bar", uri.getDecodedPath());
         assertEquals("p2", uri.getParam());
-        assertEquals(null, uri.getQuery());
+        assertNull(uri.getQuery());
 
         uri.setPathQuery("/f%30%30;p0/bar;p1;p2?name=value");
         assertEquals("http://host:8888/f%30%30;p0/bar;p1;p2?name=value", uri.toString());
@@ -212,7 +215,7 @@ public class HttpURITest
     }
 
     @Test
-    public void testSchemeAndOrAuthority() throws Exception
+    public void testSchemeAndOrAuthority()
     {
         HttpURI uri = new HttpURI("/path/info");
         assertEquals("/path/info", uri.toString());
@@ -231,7 +234,7 @@ public class HttpURITest
     }
 
     @Test
-    public void testSetters() throws Exception
+    public void testSetters()
     {
         HttpURI uri = new HttpURI();
         assertEquals("", uri.toString());
@@ -410,8 +413,14 @@ public class HttpURITest
 
                 // Non ascii characters
                 // @checkstyle-disable-check : AvoidEscapedUnicodeCharactersCheck
-                {"http://localhost:9000/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)},
-                {"http://localhost:9000/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)},
+                {
+                    "http://localhost:9000/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32",
+                    "/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)
+                },
+                {
+                    "http://localhost:9000/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32",
+                    "/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)
+                },
                 // @checkstyle-enable-check : AvoidEscapedUnicodeCharactersCheck
             }).map(Arguments::of);
     }
@@ -532,8 +541,11 @@ public class HttpURITest
                 // combinations
                 {"/path/%2f/..;/info", "/path//info", EnumSet.of(Violation.SEPARATOR, Violation.PARAM)},
                 {"/path/%2f/..;/%2e/info", "/path//info", EnumSet.of(Violation.SEPARATOR, Violation.PARAM, Violation.SEGMENT)},
-                {"/path/%2f/%25/..;/%2e//info", "/path////info", EnumSet.of(Violation.SEPARATOR, Violation.PARAM, Violation.SEGMENT, Violation.ENCODING, Violation.EMPTY)},
-            }).map(Arguments::of);
+                {
+                    "/path/%2f/%25/..;/%2e//info", "/path////info",
+                    EnumSet.of(Violation.SEPARATOR, Violation.PARAM, Violation.SEGMENT, Violation.ENCODING, Violation.EMPTY)
+                },
+                }).map(Arguments::of);
     }
 
     @ParameterizedTest
@@ -557,6 +569,71 @@ public class HttpURITest
         assertThat(uri.hasAmbiguousSeparator(), is(expected.contains(Violation.SEPARATOR)));
         assertThat(uri.hasAmbiguousParameter(), is(expected.contains(Violation.PARAM)));
         assertThat(uri.hasAmbiguousEncoding(), is(expected.contains(Violation.ENCODING)));
+    }
+
+    public static Stream<Arguments> rawControlCharacterPaths()
+    {
+        List<Arguments> cases = new ArrayList<>();
+        for (int i = 0; i <= 127; i++)
+        {
+            char c = (char)i;
+            if (Character.isISOControl(c))
+            {
+                cases.add(Arguments.of(c + "a/b/0x" + Integer.toHexString(c)));
+            }
+        }
+        return cases.stream();
+    }
+
+    @ParameterizedTest
+    @MethodSource("rawControlCharacterPaths")
+    public void testRawControlCharacterPath(String path)
+    {
+        HttpURI httpUri = new HttpURI(path);
+        assertTrue(httpUri.hasViolations(), "Path of [" + path + "] has violations");
+    }
+
+    public static Stream<Arguments> pctEncodedControlCharacterPaths()
+    {
+        List<Arguments> cases = new ArrayList<>();
+        for (int i = 0; i <= 127; i++)
+        {
+            if (Character.isISOControl(i))
+            {
+                cases.add(Arguments.of(String.format("%%%02X/a/b", i)));
+            }
+        }
+        return cases.stream();
+    }
+
+    @ParameterizedTest
+    @MethodSource("pctEncodedControlCharacterPaths")
+    public void testPctEncodedControlCharacterPath(String path)
+    {
+        HttpURI httpUri = new HttpURI(path);
+        assertTrue(httpUri.hasViolations(), "Path of [" + path + "] has violations");
+    }
+
+    public static Stream<Arguments> symbolPaths()
+    {
+        List<Arguments> cases = new ArrayList<>();
+        for (int i = 0; i <= 127; i++)
+        {
+            char c = (char)i;
+            if (!Character.isISOControl(c) && !Character.isLetterOrDigit(c))
+            {
+                cases.add(Arguments.of(c + "a/b/0x" + Integer.toHexString(c)));
+            }
+        }
+        return cases.stream();
+    }
+
+    @ParameterizedTest
+    @MethodSource("symbolPaths")
+    public void testSymbolCharacterPaths(String path)
+    {
+        HttpURI httpUri = new HttpURI(path);
+        assertTrue(httpUri.hasViolations(), "Path of [" + path + "] has violations");
     }
 
     public static Stream<Arguments> parseData()
@@ -721,7 +798,7 @@ public class HttpURITest
 
     @ParameterizedTest
     @MethodSource("parseData")
-    public void testParseURI(String input, String scheme, String host, Integer port, String path, String param, String query, String fragment) throws Exception
+    public void testParseURI(String input, String scheme, String host, Integer port, String path, String param, String query, String fragment)
     {
         URI javaUri = null;
         try
@@ -749,7 +826,7 @@ public class HttpURITest
 
     @ParameterizedTest
     @MethodSource("parseData")
-    public void testCompareToJavaNetURI(String input, String scheme, String host, Integer port, String path, String param, String query, String fragment) throws Exception
+    public void testCompareToJavaNetURI(String input, String scheme, String host, Integer port, String path, String param, String query, String fragment)
     {
         URI javaUri = null;
         try
@@ -765,12 +842,22 @@ public class HttpURITest
         HttpURI httpUri = new HttpURI(input);
 
         assertThat("[" + input + "] .scheme", httpUri.getScheme(), is(javaUri.getScheme()));
+        assertThat("[" + input + "] .scheme", httpUri.getScheme(), is(scheme));
         assertThat("[" + input + "] .host", httpUri.getHost(), is(javaUri.getHost()));
+        assertThat("[" + input + "] .host", httpUri.getHost(), is(host));
         assertThat("[" + input + "] .port", httpUri.getPort(), is(javaUri.getPort()));
+        if (port == null)
+            assertThat("[" + input + "] .port", httpUri.getPort(), is(-1));
+        else
+            assertThat("[" + input + "] .port", httpUri.getPort(), is(port));
         assertThat("[" + input + "] .path", httpUri.getPath(), is(javaUri.getRawPath()));
+        assertThat("[" + input + "] .path", httpUri.getPath(), is(path));
         // Not Relevant for java.net.URI -- assertThat("["+input+"] .param", httpUri.getParam(), is(param));
         assertThat("[" + input + "] .query", httpUri.getQuery(), is(javaUri.getRawQuery()));
+        assertThat("[" + input + "] .query", httpUri.getQuery(), is(query));
+        assertThat("[" + input + "] .query", httpUri.getParam(), is(param));
         assertThat("[" + input + "] .fragment", httpUri.getFragment(), is(javaUri.getFragment()));
+        assertThat("[" + input + "] .fragment", httpUri.getFragment(), is(fragment));
         assertThat("[" + input + "] .toString", httpUri.toString(), is(javaUri.toASCIIString()));
     }
 
