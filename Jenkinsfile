@@ -15,9 +15,9 @@ pipeline {
           steps {
             container('jetty-build') {
               timeout( time: 180, unit: 'MINUTES' ) {
-                sh "/home/jenkins/.local/bin/launchable verify"
                 echo "BUILD_TAG: $BUILD_TAG"
                 sh "ls -lrt /home/jenkins/.local/bin/"
+                sh "/home/jenkins/.local/bin/launchable verify"
                 sh "/home/jenkins/.local/bin/launchable record build --name $BUILD_TAG"
                 //mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
