@@ -15,9 +15,9 @@ pipeline {
           steps {
             container('jetty-build') {
               timeout( time: 180, unit: 'MINUTES' ) {
-                sh "~/.local/bin/launchable verify"
+                sh "/home/jenkins/.local/bin/launchable verify"
                 echo "$BUILD_TAG"
-                sh "~/.local/bin/launchable record build --name $BUILD_TAG"
+                sh "/home/jenkins/.local/bin/launchable record build --name $BUILD_TAG"
                 mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
                 jacoco inclusionPattern: '**/org/eclipse/jetty/**/*.class',
@@ -111,7 +111,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
     finally
     {
       junit testResults: '**/target/surefire-reports/*.xml,**/target/invoker-reports/TEST*.xml', allowEmptyResults: true
-      sh "~/.local/bin/launchable record tests --build $jdk-$BUILD_TAG maven '**/target/surefire-reports/'"
+      sh "/home/jenkins/.local/bin/launchable record tests --build $jdk-$BUILD_TAG maven '**/target/surefire-reports/'"
     }
   }
 }
