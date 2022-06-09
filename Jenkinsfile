@@ -4,6 +4,9 @@ pipeline {
   agent any
   // save some io during the build
   options { durabilityHint('PERFORMANCE_OPTIMIZED') }
+  environment {
+    LAUNCHABLE_TOKEN = credentials('launchable-token')
+  }  
   stages {
     stage("Parallel Stage") {
       parallel {
@@ -14,6 +17,7 @@ pipeline {
               timeout( time: 180, unit: 'MINUTES' ) {
                 sh "~/.local/bin/launchable verify"
                 echo "$BUILD_TAG"
+                sh "~/.local/bin/launchable record build --name $BUILD_TAG"
                 mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
                 jacoco inclusionPattern: '**/org/eclipse/jetty/**/*.class',
@@ -37,7 +41,11 @@ pipeline {
               }
             }
           }
-        }
+        } post {
+          always {
+            sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
+          }  
+        }  
 
         stage("Build / Test - JDK11") {
           agent { node { label 'linux' } }
@@ -49,6 +57,10 @@ pipeline {
               }
             }
           }
+        } post {
+          always {
+            sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
+          }  
         }
 
       }
@@ -109,6 +121,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
     finally
     {
       junit testResults: '**/target/surefire-reports/*.xml,**/target/invoker-reports/TEST*.xml', allowEmptyResults: true
+      sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
     }
   }
 }
