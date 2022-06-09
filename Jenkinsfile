@@ -41,12 +41,7 @@ pipeline {
               }
             }
           }
-        } post {
-          always {
-            sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
-          }  
-        }  
-
+        }
         stage("Build / Test - JDK11") {
           agent { node { label 'linux' } }
           steps {
@@ -57,12 +52,7 @@ pipeline {
               }
             }
           }
-        } post {
-          always {
-            sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
-          }  
         }
-
       }
     }
   }
@@ -121,7 +111,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
     finally
     {
       junit testResults: '**/target/surefire-reports/*.xml,**/target/invoker-reports/TEST*.xml', allowEmptyResults: true
-      sh "~/.local/bin/launchable record tests --build $BUILD_TAG maven '**/target/surefire-reports/'"
+      sh "~/.local/bin/launchable record tests --build $jdk-$BUILD_TAG maven '**/target/surefire-reports/'"
     }
   }
 }
