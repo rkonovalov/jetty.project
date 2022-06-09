@@ -12,6 +12,8 @@ pipeline {
           steps {
             container('jetty-build') {
               timeout( time: 180, unit: 'MINUTES' ) {
+                sh "~/.local/bin/launchable verify"
+                echo "$BUILD_TAG"
                 mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
                 jacoco inclusionPattern: '**/org/eclipse/jetty/**/*.class',
